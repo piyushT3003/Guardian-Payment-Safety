@@ -1,0 +1,51 @@
+user_id,name,age,avg_transaction_amount,trusted_payees,has_scam_sequence
+1,User_1,64,300,Grocery Store|Gas Agency|Temple Donation|Son|Local Pharmacy,False
+2,User_2,72,200,Daughter|Cable TV|Grandchild|Son|Local Pharmacy|Electricity Board,False
+3,User_3,68,200,Son|Water Bill|Newspaper Vendor|Temple Donation|Grandchild,False
+4,User_4,79,1000,Cable TV|Newspaper Vendor|Gas Agency|Temple Donation|Son|Grandchild,False
+5,User_5,66,300,Water Bill|Temple Donation|Son|Gas Agency,False
+6,User_6,84,1000,Grocery Store|Newspaper Vendor|Gas Agency|Grandchild|Milk Vendor|Water Bill,False
+7,User_7,70,1000,Milk Vendor|Gas Agency|Cable TV|Grocery Store|Local Pharmacy|Temple Donation,False
+8,User_8,81,300,Son|Grandchild|Grocery Store|Local Pharmacy|Electricity Board|Daughter,False
+9,User_9,68,300,Daughter|Gas Agency|Cable TV|Water Bill|Milk Vendor,False
+10,User_10,60,200,Daughter|Grandchild|Temple Donation|Gas Agency,False
+11,User_11,65,1000,Electricity Board|Milk Vendor|Grocery Store|Grandchild|Son,False
+12,User_12,84,300,Local Pharmacy|Newspaper Vendor|Milk Vendor|Cable TV|Temple Donation,True
+13,User_13,81,200,Milk Vendor|Grocery Store|Grandchild|Newspaper Vendor,True
+14,User_14,82,300,Grocery Store|Milk Vendor|Local Pharmacy|Water Bill|Son|Daughter,False
+15,User_15,64,300,Milk Vendor|Gas Agency|Grandchild|Newspaper Vendor,False
+16,User_16,71,800,Son|Gas Agency|Milk Vendor|Daughter|Cable TV|Water Bill,False
+17,User_17,83,1000,Daughter|Cable TV|Water Bill|Electricity Board,False
+18,User_18,66,1000,Electricity Board|Daughter|Local Pharmacy|Newspaper Vendor|Cable TV,True
+19,User_19,77,800,Milk Vendor|Newspaper Vendor|Grocery Store|Daughter|Son|Grandchild,False
+20,User_20,73,1000,Grocery Store|Electricity Board|Local Pharmacy|Newspaper Vendor,False
+21,User_21,65,1000,Milk Vendor|Son|Grocery Store|Temple Donation|Gas Agency|Cable TV,False
+22,User_22,62,800,Grandchild|Cable TV|Temple Donation|Son|Newspaper Vendor|Milk Vendor,True
+23,User_23,67,1000,Cable TV|Son|Newspaper Vendor|Grocery Store|Grandchild,True
+24,User_24,71,200,Daughter|Gas Agency|Cable TV|Grandchild,False
+25,User_25,72,1000,Cable TV|Water Bill|Electricity Board|Newspaper Vendor,False
+26,User_26,84,200,Grocery Store|Grandchild|Newspaper Vendor|Cable TV,False
+27,User_27,60,300,Milk Vendor|Cable TV|Gas Agency|Temple Donation,False
+28,User_28,74,1000,Water Bill|Daughter|Milk Vendor|Son|Temple Donation,True
+29,User_29,73,300,Daughter|Electricity Board|Grandchild|Local Pharmacy|Water Bill|Cable TV,False
+30,User_30,70,800,Milk Vendor|Son|Grandchild|Water Bill|Electricity Board,False
+31,User_31,85,200,Milk Vendor|Local Pharmacy|Temple Donation|Cable TV,False
+32,User_32,79,800,Temple Donation|Daughter|Electricity Board|Water Bill|Grandchild|Grocery Store,False
+33,User_33,74,1000,Daughter|Cable TV|Electricity Board|Grocery Store|Local Pharmacy|Newspaper Vendor,False
+34,User_34,63,1000,Newspaper Vendor|Electricity Board|Temple Donation|Son,False
+35,User_35,83,500,Temple Donation|Daughter|Cable TV|Gas Agency,False
+36,User_36,70,500,Daughter|Electricity Board|Temple Donation|Newspaper Vendor|Local Pharmacy,False
+37,User_37,83,200,Grandchild|Water Bill|Newspaper Vendor|Milk Vendor,False
+38,User_38,78,500,Electricity Board|Cable TV|Grocery Store|Newspaper Vendor|Gas Agency,False
+39,User_39,72,800,Daughter|Grandchild|Temple Donation|Son|Gas Agency|Grocery Store,True
+40,User_40,70,200,Gas Agency|Local Pharmacy|Cable TV|Daughter,False
+41,User_41,75,1000,Gas Agency|Milk Vendor|Electricity Board|Temple Donation|Grocery Store|Water Bill,False
+42,User_42,74,800,Electricity Board|Water Bill|Grandchild|Daughter,True
+43,User_43,70,200,Temple Donation|Daughter|Gas Agency|Newspaper Vendor,True
+44,User_44,84,1000,Local Pharmacy|Grocery Store|Daughter|Water Bill|Newspaper Vendor,False
+45,User_45,68,300,Temple Donation|Newspaper Vendor|Milk Vendor|Local Pharmacy,False
+46,User_46,73,1000,Local Pharmacy|Grandchild|Son|Temple Donation,False
+47,User_47,65,500,Local Pharmacy|Grocery Store|Cable TV|Temple Donation,True
+48,User_48,78,300,Electricity Board|Daughter|Temple Donation|Newspaper Vendor|Grocery Store|Son,False
+49,User_49,71,800,Daughter|Milk Vendor|Gas Agency|Electricity Board|Grandchild,False
+50,User_50,75,200,Son|Newspaper Vendor|Gas Agency|Milk Vendor|Temple Donation,False

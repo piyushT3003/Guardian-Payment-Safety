@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: guardian-payment-safety
+    runtime: python
+    plan: free
+    region: singapore
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app
+    healthCheckPath: /api/health
+    envVars:
+      - key: GUARDIAN_DB_PATH
+        value: /tmp/guardian.db
+      - key: RAZORPAY_WEBHOOK_SECRET
+        sync: false
