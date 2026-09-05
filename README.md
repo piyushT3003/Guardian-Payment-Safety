@@ -1,134 +1,90 @@
 # Guardian — Payment Safety Layer
 
-Guardian is a buildathon prototype for explainable payment-behavior safety. It detects suspicious payment behavior, identifies high-risk payment sequences, creates simulated company and trusted-family alerts, provides a local AI-style review summary, and keeps a human reviewer in control.
+Guardian is a payment-behavior safety layer designed to help identify suspicious transaction patterns affecting elderly and vulnerable customers.
 
-## 🚀 Live Demo
+The system combines behavioral rules, anomaly detection, sequence analysis, explainable risk scoring, alerts, and human review in a single dashboard.
 
-👉 **[Open Guardian Live Demo](https://web-production-d829f.up.railway.app)**
+## Live Demo
 
-The live application is deployed on Railway and uses synthetic/demo payment data.
+**[Open Guardian Live Demo](https://web-production-d829f.up.railway.app)**
 
----
+The live demo uses synthetic transaction data. No real payments or customer funds are involved.
 
-## 🎯 Problem
+## Problem
 
-Elderly and vulnerable customers can be targeted by scams that begin with small "test" payments and quickly escalate into large transfers.
+Some payment scams do not look suspicious when transactions are viewed individually. A scam can develop over several transactions:
 
-Traditional transaction checks may look at individual transactions, while scam behavior can emerge as a sequence:
+**New recipient → small test payment → repeated payment → large transfer**
 
-**New recipient → small test payment → repeated payment → large drain**
+This makes sequence and behavioral context important when assessing transaction risk.
 
-Guardian is designed as a safety layer that combines multiple behavioral signals and makes the reason for a high-risk decision visible to a human reviewer.
+Guardian focuses on this pattern by looking at the customer's previous behavior as well as the current transaction.
 
----
+## Solution
 
-## 💡 Solution
+For each transaction, Guardian evaluates several signals:
 
-Guardian analyzes payment behavior using multiple signals:
+- New recipient
+- Rapid or repeated payments to the same recipient
+- Unusual payment amount compared with the customer's behavior
+- Behavioral anomaly detected using Isolation Forest
+- Transaction sequence and surrounding activity
 
-- New-recipient detection
-- Rapid payment / burst detection
-- Personalized amount anomaly detection
-- Isolation Forest behavioral anomaly detection
-- Scam sequence analysis
-- Explainable 0–100 risk scoring
-- LOW / MEDIUM / HIGH risk classification
-- Company security alerts
-- Trusted family contact alerts
-- Local AI Review Assistant
-- Human-in-the-loop Approve / Reject workflow
-- SQLite audit trail
+These signals are combined into an explainable risk score from **0 to 100** and classified as **LOW, MEDIUM, or HIGH**.
 
-Guardian is designed to support human decision-making rather than automatically moving, reversing, or freezing real money.
+High-risk cases are sent for human review instead of automatically taking action on the payment.
 
----
-
-## 🏗️ Architecture
+## Architecture
 
 ```text
 Payment Event
       ↓
-Demo / Synthetic Data OR RazorpayX-style Webhook
+Synthetic / Demo Data
+        OR
+RazorpayX-style Webhook
       ↓
 Guardian Risk Engine
       ↓
 New Payee Detection
-+ Rapid Payment / Burst Detection
-+ Personalized Amount Anomaly Detection
-+ Isolation Forest Anomaly Detection
++ Burst / Velocity Detection
++ Personalized Amount Analysis
++ Isolation Forest
       ↓
 Sequence Analysis
       ↓
-Explainable Risk Score (0–100)
+Risk Score (0–100)
       ↓
 LOW / MEDIUM / HIGH
       ↓
 HIGH RISK
       ↓
-Company Security Alert + Trusted Family Alert
+Company Security Alert
++ Trusted Family Alert
       ↓
 AI Review Assistant
       ↓
-Human Approve / Reject
+Human Review
       ↓
-SQLite Audit Trail
+APPROVE / REJECT
+      ↓
+Audit Trail
 ```
 
-### Architecture Flow
+### How the flow works
 
-1. A payment event enters Guardian through synthetic/demo data or the simulated RazorpayX-style payout webhook.
-2. The Guardian Risk Engine evaluates the transaction.
-3. Multiple behavioral signals are checked, including new recipients, payment bursts, personalized amount anomalies, and Isolation Forest anomalies.
-4. The signals are combined into an explainable risk score from 0–100.
-5. The transaction is classified as LOW, MEDIUM, or HIGH risk.
-6. HIGH-risk transactions are sent for human review and generate simulated company and trusted-family alerts.
-7. The local AI Review Assistant summarizes the case and recommends an action.
-8. A human reviewer can Approve or Reject the case.
-9. The final decision is recorded in the SQLite audit trail.
+1. A transaction enters Guardian through the demo system or the simulated payout webhook.
+2. The risk engine checks the transaction against the customer's previous activity.
+3. Multiple behavioral and anomaly signals are evaluated.
+4. The signals are combined into an explainable risk score.
+5. High-risk transactions are moved to investigation.
+6. Simulated alerts are created for the company security team and trusted family contact.
+7. The local AI Review Assistant summarizes the case and provides a recommendation.
+8. A human reviewer can approve or reject the case.
+9. The decision is recorded in the audit trail.
 
----
+## Scam Sequence Detection
 
-## 🔍 Risk Detection
-
-Guardian combines rule-based behavioral signals with machine-learning anomaly detection.
-
-### New Payee Detection
-
-Detects when a customer makes a payment to a recipient that has not previously appeared in their transaction history.
-
-### Burst / Velocity Detection
-
-Detects rapid or repeated payments to the same recipient within a short period.
-
-### Personalized Amount Anomaly
-
-Compares a transaction amount with the customer's previous payment behavior to identify unusually large or personalized amounts.
-
-### Isolation Forest
-
-Guardian uses **Isolation Forest** for behavioral anomaly detection.
-
-The model is trained using a customer's historical transaction behavior and helps identify transactions that are unusual relative to that customer's normal pattern.
-
-### Explainable Risk Score
-
-Signals are combined into a **0–100 risk score**.
-
-Risk levels:
-
-- **LOW** — lower observed risk
-- **MEDIUM** — requires additional attention
-- **HIGH** — sent to human review
-
-The dashboard also shows the signals contributing to the risk score so that the decision is explainable.
-
----
-
-## 🚨 Scam Sequence Detection
-
-Guardian is designed to identify scam sequences rather than looking only at isolated transactions.
-
-Example:
+The built-in demonstration shows a simple payment escalation:
 
 ```text
 ₹200
@@ -144,92 +100,83 @@ Rapid Repeat Payment
 HIGH RISK
 ```
 
-The investigation panel provides:
+The investigation view allows the reviewer to inspect the sequence, contributing signals, risk score, recipient profile, and recommended action.
 
-- Detected signals
-- Risk score
-- Risk score breakdown
-- Pattern timeline
-- Scam sequence playback
-- Recipient profile
-- Customer safety profile
-- AI Review Assistant
-- Company security alert
-- Trusted family alert
-- Human review controls
+## Risk Detection
 
----
+### New Payee
 
-## 🤖 AI Review Assistant
+Identifies payments to recipients that have not previously appeared in the customer's transaction history.
 
-Guardian includes a local deterministic AI-style review assistant.
+### Burst / Velocity
+
+Looks for multiple payments to the same recipient within a short period.
+
+### Personalized Amount Analysis
+
+Compares the current amount with the customer's previous payment behavior to identify unusually large transactions.
+
+### Isolation Forest
+
+Isolation Forest is used to identify transaction behavior that differs from the customer's normal activity.
+
+### Explainable Risk Score
+
+The individual signals contribute to a 0–100 risk score. The dashboard displays the detected signals so the reviewer can understand why a transaction was flagged.
+
+## AI Review Assistant
+
+Guardian includes a local AI-style review assistant that generates a structured review of a flagged transaction.
 
 It provides:
 
 - Assessment
-- Case summary
-- Risk reasons
+- Summary
+- Reasons
 - Recommended action
 - Confidence
 
-The review assistant does **not** require a paid LLM API or external AI service.
+The assistant is deterministic and runs locally within the application. No paid LLM API is required for the demo.
 
-This keeps the buildathon prototype self-contained and reproducible.
+## Human Review
 
----
-
-## 👤 Human-in-the-Loop Review
-
-Guardian does not automatically take financial action.
-
-When a transaction is classified as HIGH risk:
+Guardian keeps the final decision with a human reviewer.
 
 ```text
 HIGH RISK
     ↓
 Human Review
     ↓
-┌───────────────┐
-│   APPROVE     │
-│      OR       │
-│    REJECT     │
-└───────────────┘
+APPROVE / REJECT
     ↓
 Audit Trail
 ```
 
-Approve / Reject changes the state of the demonstration case only.
+The Approve and Reject actions change the state of the demonstration case only. They do not freeze, reverse, transfer, or modify real money.
 
-No real payment is frozen, reversed, transferred, or modified.
+## Alerts
 
----
+High-risk cases generate two simulated alerts:
 
-## 🔔 Alerts
+**Company Security Team**
 
-For high-risk cases, Guardian creates simulated:
+A security alert containing the transaction and risk information needed for investigation.
 
-### Company Security Alert
+**Trusted Family Contact**
 
-Notifies the simulated company security team that a potentially suspicious transaction requires investigation.
+A preview of the type of notification that could be shown to a trusted contact for a vulnerable customer.
 
-### Trusted Family Alert
+These alerts are simulated and do not send real messages.
 
-Provides a simulated trusted-family notification preview for vulnerable customers.
+## Evaluation
 
-These are local demonstration alerts and do not send real-world messages.
+Guardian was tested using a synthetic dataset with:
 
----
-
-## 🧪 Evaluation Results
-
-Guardian was evaluated using a synthetic dataset containing:
-
-- **50 users**
-- **Age range:** 60–85
-- **90 days of transaction history**
-- **1,381 transactions**
-- **20% synthetic scam rate**
-- **35 scam transactions**
+- 50 users
+- Customer ages between 60 and 85
+- 90 days of transaction history
+- 1,381 transactions
+- 35 synthetic scam transactions
 
 ### Detection Results
 
@@ -246,63 +193,58 @@ Guardian was evaluated using a synthetic dataset containing:
 | Average first detection | Transaction #2 |
 | Caught before final drain | 10 / 10 |
 
-### Robustness Test
+Guardian also caught **90/90 synthetic scam sequences** across six tested sequence variants.
 
-Guardian caught **90/90 synthetic scam sequences** across six tested sequence variants.
+For single-test and direct-drain scenarios, detection can occur only at the large transaction because there is no earlier behavioral signal to work with.
 
-A limitation was observed for single-test and direct-drain scenarios: without a preceding behavioral signal, detection can occur only when the large drain transaction itself appears.
+These results are from synthetic data and are not claims of real-world financial performance.
 
-These results are based on synthetic/demo data and should not be interpreted as real-world financial performance.
+## Demo Scenario
 
----
+The built-in demo creates a short payment sequence:
 
-## 🧰 Tech Stack
+```text
+₹200    → LOW
+₹500    → HIGH
+₹45,000 → HIGH
+```
 
-### Backend
+This demonstrates the complete Guardian workflow:
 
-- Python
-- Flask
-- Gunicorn
-- SQLite
+**Transaction → Detection → Risk Score → Investigation → Alerts → AI Review → Human Decision → Audit Trail**
 
-### AI / ML
+## Dashboard
 
-- scikit-learn
-- Isolation Forest
-- Behavioral anomaly detection
-- Explainable rule-based risk scoring
+The dashboard includes:
 
-### Frontend
+- Live Transaction Monitor
+- Risk summary cards
+- Investigation panel
+- Risk score visualization
+- Detected signals
+- Risk Score Breakdown
+- Pattern Timeline
+- Scam Sequence Playback
+- Recipient Profile
+- Customer Safety Profile
+- AI Review Assistant
+- Company Security Alert
+- Trusted Family Alert
+- Approve / Reject actions
+- Risk Trend
+- Recent Alerts
+- Demo Scenarios
+- CSV Dataset Analysis
+- Audit Trail
 
-- HTML
-- CSS
-- JavaScript
-- Responsive fintech-style dashboard
+## RazorpayX-style Webhook
 
-### Security
-
-- HMAC-SHA256 webhook signature verification
-- Local simulated alerts
-- Audit trail
-- Human-in-the-loop review
-
-### Deployment
-
-- Railway
-- Gunicorn
-
----
-
-## 💳 RazorpayX-Style Webhook Simulation
-
-Guardian includes a simulated RazorpayX-style payout webhook endpoint.
-
-The webhook flow demonstrates:
+Guardian includes a simulated payout webhook endpoint with HMAC-SHA256 signature verification.
 
 ```text
 Payout Webhook
       ↓
-HMAC-SHA256 Verification
+Signature Verification
       ↓
 Guardian Risk Engine
       ↓
@@ -311,68 +253,139 @@ Risk Classification
 Investigation / Alert / Review
 ```
 
-This is a **local simulation for the buildathon prototype** and is not a live production Razorpay integration.
+This is a simulated integration for the buildathon and is not a live production Razorpay integration.
 
-No live Razorpay payment credentials are required.
+## Tech Stack
 
----
+**Backend**
+- Python
+- Flask
+- Gunicorn
+- SQLite
 
-## 📊 Dashboard Features
+**AI / ML**
+- scikit-learn
+- Isolation Forest
+- Behavioral anomaly detection
+- Rule-based risk scoring
 
-The Guardian dashboard includes:
+**Frontend**
+- HTML
+- CSS
+- JavaScript
 
-- Live Transaction Monitor
-- Risk KPI cards
-- Investigation panel
-- Risk score ring
-- Detected signals
-- Risk Score Breakdown
-- Scam Pattern Timeline
-- Scam Sequence Playback
-- Recipient Profile
-- Customer Safety Profile
-- AI Review Assistant
-- Company Security Team Alert
-- Trusted Family Contact Alert
-- Approve / Reject controls
-- Risk Trend
-- Recent Alerts
-- Demo & Test scenarios
-- CSV Dataset Upload
-- Dataset Analysis
-- All / High / Medium / Low filters
-- Download Dataset Analysis Report
-- Reset Dataset
-- Audit Trail
-- Security and Responsible AI information
+**Security**
+- HMAC-SHA256
+- Audit trail
+- Human-in-the-loop review
 
----
+**Deployment**
+- Railway
 
-## 🧪 Synthetic Demo Scenario
+## Deployment
 
-The built-in demo scenario uses a simple scam progression:
+Guardian is deployed on Railway using Gunicorn and Flask.
 
-```text
-₹200  → LOW
-₹500  → HIGH
-₹45,000 → HIGH
+**[Open the deployed application](https://web-production-d829f.up.railway.app)**
+
+The prototype uses SQLite for storing demo events, alerts, actions, and audit information.
+
+## Run Locally
+
+### Requirements
+
+- Python 3.x
+- pip
+
+### Setup
+
+Create a virtual environment:
+
+```bash
+python -m venv venv
 ```
 
-The sequence demonstrates how Guardian can combine:
+Activate it on Windows:
 
-- New recipient behavior
-- Rapid payment behavior
-- Unusual payment amount
-- Behavioral anomaly detection
-- Risk scoring
-- Investigation
-- Alerts
-- Human review
-- Audit logging
+```bash
+venv\Scripts\activate
+```
 
----
+Install the dependencies:
 
-## 📁 Project Structure
+```bash
+pip install -r requirements.txt
+```
+
+Start the application:
+
+```bash
+python app.py
+```
+
+Open:
+
+```text
+http://127.0.0.1:5000/
+```
+
+## Dataset Analysis
+
+Guardian can analyze transaction datasets uploaded as CSV files.
+
+The upload system can detect the following fields:
+
+- User / Customer
+- Recipient / Payee
+- Amount
+- Timestamp / Date
+
+An optional transaction ID can also be provided.
+
+The dashboard supports filtering results by:
+
+- All
+- High
+- Medium
+- Low
+
+An analysis report can also be downloaded from the dashboard.
+
+## Reset Demo
+
+The dashboard includes a reset option for clearing demonstration data.
+
+The reset utility can also be run with:
+
+```bash
+python tools/reset_demo.py
+```
+
+This clears demo events, alerts, and reviewer actions while keeping the database structure intact.
+
+## Security and Responsible Use
+
+Guardian is a buildathon prototype and has deliberately limited scope.
+
+- Uses synthetic/demo transaction data
+- Does not process real customer funds
+- Does not make real financial decisions
+- Does not freeze or reverse real payments
+- Approve / Reject affects demo state only
+- Company and family alerts are simulated
+- RazorpayX integration is simulated
+- AI Review Assistant runs locally
+- Evaluation results use synthetic data
+
+A production system would require additional security controls, privacy protections, model monitoring, reliability testing, regulatory review, and verified payment-provider integrations.
+
+## Buildathon
+
+Built for the **Razorpay AI Buildathon — Open Track**.
+
+Guardian explores how payment behavior, anomaly detection, explainable risk scoring, and human review can work together to provide an additional safety layer for vulnerable customers.
+
+## Project Structure
 
 ```text
 Guardian-Payment-Safety/
@@ -389,185 +402,17 @@ Guardian-Payment-Safety/
 ├── start_guardian.bat
 │
 ├── data/
-│
 ├── static/
-│   └── guardian-hero.png
-│
 ├── templates/
-│   └── dashboard.html
-│
 └── tools/
-    └── reset_demo.py
 ```
 
----
-
-## 💻 Run Locally — Windows / VS Code
-
-### 1. Clone or download the repository
-
-Open the project folder in VS Code.
-
-### 2. Create a virtual environment
-
-```bash
-python -m venv venv
-```
-
-### 3. Activate the virtual environment
-
-```bash
-venv\Scripts\activate
-```
-
-### 4. Install dependencies
-
-```bash
-pip install -r requirements.txt
-```
-
-### 5. Start Guardian
-
-```bash
-python app.py
-```
-
-### 6. Open the dashboard
-
-```text
-http://127.0.0.1:5000/
-```
-
----
-
-## 🧹 Clean Demo Reset
-
-Guardian provides a reset option from the dashboard.
-
-You can also run:
-
-```bash
-python tools/reset_demo.py
-```
-
-The reset clears demo events, alerts, and reviewer actions without deleting the database schema.
-
----
-
-## 📂 CSV Dataset Analysis
-
-Guardian supports CSV upload and automatic column detection for:
-
-- User / Customer
-- Recipient / Payee
-- Amount
-- Timestamp / Date
-
-An optional transaction ID can also be supplied.
-
-The uploaded dataset is analyzed using the Guardian risk engine and the results are displayed in the dashboard.
-
-The analysis supports:
-
-- All
-- High
-- Medium
-- Low
-
-The dashboard can also generate a downloadable CSV analysis report.
-
----
-
-## 🚀 Deployment
-
-Guardian is deployed as a live demo on Railway.
-
-👉 **[Open Guardian Live Demo](https://web-production-d829f.up.railway.app)**
-
-The application runs using:
-
-```text
-Gunicorn
-    ↓
-Flask Application
-    ↓
-Guardian Risk Engine
-```
-
-The hosted deployment uses SQLite for the prototype database.
-
-For hosted environments, the SQLite database path can be configured using:
-
-```text
-GUARDIAN_DB_PATH
-```
-
----
-
-## 🔐 Security & Responsible AI
-
-Guardian is intentionally designed as a safety-focused prototype.
-
-### Current boundaries
-
-- Uses synthetic/demo transaction data
-- Does not process real customer funds
-- Does not make real financial decisions
-- Does not freeze or reverse real payments
-- Approve / Reject changes demo state only
-- Company and family notifications are simulated
-- RazorpayX integration is simulated
-- AI Review Assistant is local and deterministic
-- Evaluation results are based on synthetic data
-- No real-world financial performance claims are made
-
-Guardian is a **buildathon prototype, not a production financial-security system**.
-
-A production implementation would require additional security controls, privacy safeguards, model monitoring, human-review policies, regulatory considerations, reliability testing, and verified payment-provider integrations.
-
----
-
-## 🎯 Buildathon Context
-
-Guardian was built for the **Razorpay AI Buildathon — Open Track**.
-
-The project focuses on a real-world payment safety problem and demonstrates how behavioral analytics, machine learning, explainable risk scoring, alerts, and human review can work together as a payment safety layer.
-
----
-
-## 👨‍💻 Author
+## Author
 
 **Piyush Tandale**
 
-GitHub:  
-👉 **[piyushT3003](https://github.com/piyushT3003)**
+**GitHub:** [piyushT3003](https://github.com/piyushT3003)
 
-Project Repository:  
-👉 **[Guardian-Payment-Safety](https://github.com/piyushT3003/Guardian-Payment-Safety)**
+**Repository:** [Guardian-Payment-Safety](https://github.com/piyushT3003/Guardian-Payment-Safety)
 
-Live Demo:  
-👉 **[Guardian Live Demo](https://web-production-d829f.up.railway.app)**
-
----
-
-## 📌 Final Demo Flow
-
-```text
-Payment Event
-      ↓
-Guardian Detection
-      ↓
-Scam Pattern
-      ↓
-Risk Score
-      ↓
-Company + Family Alert
-      ↓
-AI Review Assistant
-      ↓
-Human Approve / Reject
-      ↓
-Audit Trail
-```
-
-**Guardian — AI-powered payment safety for vulnerable customers.**
+**Live Demo:** [Guardian](https://web-production-d829f.up.railway.app)
