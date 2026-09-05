@@ -1,6 +1,9 @@
 # Guardian — Payment Safety Layer
 
 Guardian is a buildathon prototype for explainable payment-behavior safety. It detects suspicious payment behavior, identifies high-risk sequences, creates local company/family alerts, provides an AI-style review summary, and keeps a human reviewer in control.
+## 🚀 Live Demo
+
+👉 **[Open Guardian Live Demo](https://web-production-d829f.up.railway.app)**
 
 ## Final demo flow
 
