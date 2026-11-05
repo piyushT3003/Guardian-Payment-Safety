@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, asdict
 from datetime import timedelta
 from typing import Optional
@@ -9,6 +10,21 @@ from sklearn.ensemble import IsolationForest
 
 BURST_WINDOW_MINUTES = 60
 MIN_HISTORY_FOR_MODEL = 10
+
+
+def haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    """Calculate great-circle distance between two GPS coordinates in kilometers."""
+    r = 6371.0
+    dlat = math.radians(lat2 - lat1)
+    dlon = math.radians(lon2 - lon1)
+    a = (
+        math.sin(dlat / 2.0) ** 2
+        + math.cos(math.radians(lat1))
+        * math.cos(math.radians(lat2))
+        * math.sin(dlon / 2.0) ** 2
+    )
+    c = 2.0 * math.atan2(math.sqrt(a), math.sqrt(max(0.0, 1.0 - a)))
+    return round(r * c, 1)
 
 
 @dataclass
@@ -28,6 +44,9 @@ class RiskResult:
     ai_score: Optional[float]
     reasons: list[str]
     recommended_action: str
+    distance_km: Optional[float] = None
+    velocity_kmh: Optional[float] = None
+    geofence_status: Optional[str] = None
 
     @property
     def signals(self):
@@ -41,6 +60,10 @@ class RiskResult:
             "ai_anomaly": bool(self.ai_anomaly),
             "ai_score": self.ai_score,
             "amount": float(self.amount),
+            "distance_km": self.distance_km,
+            "velocity_kmh": self.velocity_kmh,
+            "geofence_status": self.geofence_status,
+            "impossible_speed": bool(self.velocity_kmh and self.velocity_kmh > 850),
         }
 
     def to_dict(self):
@@ -103,20 +126,23 @@ class GuardianEngine:
             self.users["avg_transaction_amount"] = 0.0
 
     def _fit_models(self):
-        models = {}
-        for uid, group in self.txns.groupby("user_id"):
-            amounts = group[["amount"]].astype(float).values
-            if len(amounts) < MIN_HISTORY_FOR_MODEL:
-                models[uid] = None
-                continue
-            model = IsolationForest(
-                n_estimators=64,
-                contamination="auto",
-                random_state=42,
-            )
-            model.fit(amounts)
-            models[uid] = model
-        return models
+        class LazyModelDict(dict):
+            def __init__(self, txns):
+                super().__init__()
+                self._txns = txns
+
+            def __missing__(self, key):
+                user_txns = self._txns[self._txns["user_id"].astype(str) == str(key)]
+                amounts = user_txns[["amount"]].astype(float).values if not user_txns.empty else []
+                if len(amounts) >= MIN_HISTORY_FOR_MODEL:
+                    model = IsolationForest(n_estimators=64, contamination="auto", random_state=42)
+                    model.fit(amounts)
+                    self[key] = model
+                else:
+                    self[key] = None
+                return self[key]
+
+        return LazyModelDict(self.txns)
 
     def _history_before(self, user_id, created_at):
         ts = pd.Timestamp(created_at)
@@ -134,6 +160,14 @@ class GuardianEngine:
         transaction_id="live",
         trusted_payees_override=None,
         history_extra: pd.DataFrame | None = None,
+        origin_lat: float | None = None,
+        origin_lon: float | None = None,
+        origin_city: str | None = None,
+        dest_lat: float | None = None,
+        dest_lon: float | None = None,
+        dest_city: str | None = None,
+        accuracy_meters: float | None = None,
+        elderly_age: int | None = None,
     ) -> RiskResult:
         matches = self.users[self.users["user_id"].astype(str) == str(user_id)]
         if matches.empty:
@@ -156,7 +190,7 @@ class GuardianEngine:
             extra = extra.dropna(subset=["date", "amount"])
             extra = extra[(extra["user_id"].astype(str) == str(user_id)) & (extra["date"] < pd.Timestamp(created_at))]
             if not extra.empty:
-                history = pd.concat([history[["user_id", "payee", "amount", "date"]], extra[["user_id", "payee", "amount", "date"]]], ignore_index=True).sort_values("date")
+                history = pd.concat([history, extra], ignore_index=True).sort_values("date")
 
         trusted = (
             set(trusted_payees_override)
@@ -207,14 +241,58 @@ class GuardianEngine:
             else:
                 reasons.append("AI anomaly: the amount is outside the user's learned spending pattern")
 
-        if new_payee and (burst_count > 0 or unusual_amount or ai_anomaly):
+        # Geospatial distance & Geofence analysis
+        distance_km: float | None = None
+        geofence_status: str | None = None
+        if origin_lat is not None and origin_lon is not None and dest_lat is not None and dest_lon is not None:
+            distance_km = haversine_km(float(origin_lat), float(origin_lon), float(dest_lat), float(dest_lon))
+            if distance_km >= 3000:
+                geofence_status = "CROSS_BORDER_ANOMALY"
+                score += 30
+                dest_name = dest_city or "Overseas Node"
+                reasons.append(f"Offshore Geofence Anomaly: Recipient node is {int(distance_km):,} km away ({dest_name}), outside user's domestic corridor")
+            elif distance_km >= 500:
+                geofence_status = "INTER_CITY_OUT_OF_PATTERN"
+                if new_payee:
+                    score += 15
+                    reasons.append(f"Inter-city transfer to unfamiliar corridor: {int(distance_km):,} km to {dest_city or 'remote city'}")
+            else:
+                geofence_status = "LOCAL_CORRIDOR"
+
+        # Impossible Velocity & Teleportation analysis
+        velocity_kmh: float | None = None
+        if origin_lat is not None and origin_lon is not None and len(history) > 0:
+            if "origin_lat" in history.columns and "origin_lon" in history.columns:
+                prior_geo = history.dropna(subset=["origin_lat", "origin_lon"]).sort_values("date")
+                if not prior_geo.empty:
+                    last_tx = prior_geo.iloc[-1]
+                    last_lat = float(last_tx["origin_lat"])
+                    last_lon = float(last_tx["origin_lon"])
+                    last_date = pd.Timestamp(last_tx["date"]).to_pydatetime()
+                    dist_delta = haversine_km(last_lat, last_lon, float(origin_lat), float(origin_lon))
+                    time_delta_hours = max(0.005, (created_at - last_date).total_seconds() / 3600.0)
+                    velocity_kmh = round(dist_delta / time_delta_hours, 1)
+                    if velocity_kmh > 850 and dist_delta > 80:
+                        score += 35
+                        time_mins = max(1, int(time_delta_hours * 60))
+                        reasons.append(f"Impossible Velocity Anomaly: {int(velocity_kmh):,} km/h speed across {int(dist_delta)} km in {time_mins} mins (exceeds 850 km/h flight physics)")
+
+        # Senior vulnerability weighting
+        if elderly_age is not None and int(elderly_age) >= 65:
+            if amount >= 15000 and (new_payee or unusual_amount):
+                score += 15
+                reasons.append(f"Senior Vulnerability Pattern: Age {elderly_age} account subjected to sudden large transfer (₹{amount:,.0f})")
+
+        # GPS accuracy warning
+        if accuracy_meters is not None and float(accuracy_meters) > 5000:
+            reasons.append(f"Degraded GPS Accuracy: Device location precision is low (±{int(accuracy_meters)}m)")
+
+        if new_payee and (burst_count > 0 or unusual_amount or ai_anomaly or geofence_status == "CROSS_BORDER_ANOMALY" or (velocity_kmh and velocity_kmh > 850)):
             score = max(score, 70)
-        # A rapid sequence plus an unusual amount is treated as a strong
-        # sequence-level warning. Keep this deterministic so the demo reaches
-        # the same high-risk presentation state as the product UI.
-        if burst_count > 0 and (unusual_amount or ai_anomaly):
+        # A rapid sequence plus an unusual amount, or cross-border/teleportation anomaly, is treated as high-risk
+        if (burst_count > 0 and (unusual_amount or ai_anomaly)) or geofence_status == "CROSS_BORDER_ANOMALY" or (velocity_kmh and velocity_kmh > 850):
             score = max(score, 85)
-        elif not new_payee and not (burst_count > 0 and (unusual_amount or ai_anomaly)):
+        elif not new_payee and not (burst_count > 0 and (unusual_amount or ai_anomaly)) and geofence_status != "CROSS_BORDER_ANOMALY":
             score = min(score, 59)
 
         score = max(0, min(100, int(score)))
@@ -244,9 +322,27 @@ class GuardianEngine:
             ai_score=ai_score,
             reasons=reasons,
             recommended_action=action,
+            distance_km=distance_km,
+            velocity_kmh=velocity_kmh,
+            geofence_status=geofence_status,
         )
 
-    def analyze(self, user_id, payee, amount, created_at, transaction_id="live") -> RiskResult:
+    def analyze(
+        self,
+        user_id,
+        payee,
+        amount,
+        created_at,
+        transaction_id="live",
+        origin_lat: float | None = None,
+        origin_lon: float | None = None,
+        origin_city: str | None = None,
+        dest_lat: float | None = None,
+        dest_lon: float | None = None,
+        dest_city: str | None = None,
+        accuracy_meters: float | None = None,
+        elderly_age: int | None = None,
+    ) -> RiskResult:
         """Deployment-friendly alias used by the Flask app."""
         return self.score(
             user_id=user_id,
@@ -254,4 +350,12 @@ class GuardianEngine:
             amount=amount,
             created_at=created_at,
             transaction_id=transaction_id,
+            origin_lat=origin_lat,
+            origin_lon=origin_lon,
+            origin_city=origin_city,
+            dest_lat=dest_lat,
+            dest_lon=dest_lon,
+            dest_city=dest_city,
+            accuracy_meters=accuracy_meters,
+            elderly_age=elderly_age,
         )

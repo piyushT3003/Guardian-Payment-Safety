@@ -1,0 +1,88 @@
+{
+  "CUST-7821": {
+    "customer_id": "CUST-7821",
+    "name": "Ramesh Kulkarni",
+    "age": 68,
+    "age_group": "68 (Senior Citizen)",
+    "registered_since": "Jan 2024",
+    "verified": true,
+    "phone": "+91 98201 44821",
+    "email": "ramesh.kulkarni@example.com",
+    "total_transactions": 58,
+    "total_spent": 124300.0,
+    "safety_score": 82,
+    "safety_level": "Safe",
+    "safety_summary": "Low risk spending profile. Active senior monitoring enabled.",
+    "guardian": {
+      "name": "Aditya Kulkarni",
+      "relation": "Son",
+      "phone": "+91 98201 99112",
+      "email": "aditya.kulkarni@example.com",
+      "alert_channel": "SMS & WhatsApp Emergency Push",
+      "permission": "Hold Authorization Granted"
+    },
+    "trusted_payees": [
+      "Apollo Pharmacy & Clinic",
+      "Grocery Mart",
+      "Apollo Hospital Care",
+      "Adani Electricity Mumbai",
+      "Son (Aditya)"
+    ]
+  },
+  "CUST-3914": {
+    "customer_id": "CUST-3914",
+    "name": "Sunita Sharma",
+    "age": 64,
+    "age_group": "64 (Senior Citizen)",
+    "registered_since": "Mar 2023",
+    "verified": true,
+    "phone": "+91 98211 55914",
+    "email": "sunita.sharma@example.com",
+    "total_transactions": 74,
+    "total_spent": 215400.0,
+    "safety_score": 68,
+    "safety_level": "Moderate",
+    "safety_summary": "Moderate risk behaviour. Detected frequent new device logins.",
+    "guardian": {
+      "name": "Pooja Sharma",
+      "relation": "Daughter",
+      "phone": "+91 98211 44889",
+      "email": "pooja.sharma@example.com",
+      "alert_channel": "Emergency Push & Call",
+      "permission": "Hold Authorization Granted"
+    },
+    "trusted_payees": [
+      "Milk Vendor",
+      "Grocery Store",
+      "Gas Agency"
+    ]
+  },
+  "CUST-5520": {
+    "customer_id": "CUST-5520",
+    "name": "Vijay Deshmukh",
+    "age": 72,
+    "age_group": "72 (Senior Citizen)",
+    "registered_since": "Nov 2022",
+    "verified": true,
+    "phone": "+91 98190 77520",
+    "email": "vijay.deshmukh@example.com",
+    "total_transactions": 42,
+    "total_spent": 98700.0,
+    "safety_score": 45,
+    "safety_level": "Action Required",
+    "safety_summary": "High risk pattern detected recently: multiple OTP failures and high-value transfer.",
+    "guardian": {
+      "name": "Dr. Rohan Deshmukh",
+      "relation": "Son",
+      "phone": "+91 98190 33221",
+      "email": "rohan.deshmukh@example.com",
+      "alert_channel": "Emergency Push & Call",
+      "permission": "Hold Authorization Granted"
+    },
+    "trusted_payees": [
+      "Water Bill",
+      "Temple Donation",
+      "Cable TV"
+    ]
+  }
+}

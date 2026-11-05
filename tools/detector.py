@@ -15,6 +15,7 @@ A transaction is flagged SUSPICIOUS if it's a new payee AND
 plain-language explanation and is logged to an audit trail.
 """
 
+import os
 import pandas as pd
 import json
 from datetime import datetime
@@ -26,6 +27,19 @@ AMOUNT_JUMP_MULTIPLIER = 5     # flag if amount > 5x the user's average transact
 
 
 def load_data(users_path="guardian_users.csv", transactions_path="guardian_transactions.csv"):
+    if not os.path.exists(users_path):
+        candidates = [os.path.join("data", users_path), os.path.join("..", "data", users_path)]
+        for c in candidates:
+            if os.path.exists(c):
+                users_path = c
+                break
+    if not os.path.exists(transactions_path):
+        candidates = [os.path.join("data", transactions_path), os.path.join("..", "data", transactions_path)]
+        for c in candidates:
+            if os.path.exists(c):
+                transactions_path = c
+                break
+
     users = pd.read_csv(users_path)
     users["trusted_payees"] = users["trusted_payees"].apply(lambda s: set(s.split("|")))
     transactions = pd.read_csv(transactions_path)
