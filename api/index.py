@@ -13,6 +13,7 @@ os.environ["VERCEL"] = "1"
 
 try:
     from app import app
+    handler = app
 except Exception as exc:
     from flask import Flask, jsonify
     app = Flask(__name__)
@@ -28,3 +29,4 @@ except Exception as exc:
             "sys_path": sys.path,
             "cwd": os.getcwd()
         }), 500
+    handler = app
