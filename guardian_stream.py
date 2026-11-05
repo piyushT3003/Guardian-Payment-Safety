@@ -8,11 +8,18 @@ fraud alerts, family approvals, and 5-minute recovery timers to connected fronte
 from __future__ import annotations
 
 import json
+import os
 import queue
 import threading
 import time
 from datetime import datetime, timezone
 from typing import Any, Dict, Generator
+
+IS_SERVERLESS = bool(
+    os.environ.get("VERCEL")
+    or os.environ.get("AWS_LAMBDA_FUNCTION_NAME")
+    or os.environ.get("NOW_REGION")
+)
 
 
 class EventBus:
@@ -74,11 +81,18 @@ def event_stream_generator(q: queue.Queue) -> Generator[str, None, None]:
     initial_payload = json.dumps({"connected": True, "server_time": datetime.now(timezone.utc).isoformat()})
     yield format_sse(initial_payload, event="handshake")
 
+    start_time = time.time()
+    max_duration = 20.0 if IS_SERVERLESS else None
+
     try:
         while True:
+            if max_duration and (time.time() - start_time) > max_duration:
+                # In serverless environments (Vercel/AWS Lambda), close stream gracefully
+                # before function timeout; native browser EventSource will auto-reconnect.
+                break
             try:
-                # Wait for up to 15 seconds for an event
-                message = q.get(timeout=15.0)
+                # Wait for up to 5 seconds for an event
+                message = q.get(timeout=5.0)
                 event_name = message.get("event", "message")
                 payload_str = json.dumps(message.get("data", {}))
                 yield format_sse(payload_str, event=event_name)
@@ -86,4 +100,6 @@ def event_stream_generator(q: queue.Queue) -> Generator[str, None, None]:
                 # Heartbeat keep-alive ping
                 yield ": ping\n\n"
     except GeneratorExit:
+        pass
+    finally:
         stream_bus.unsubscribe(q)

@@ -11,6 +11,7 @@ import random
 import math
 import time
 import uuid
+import tempfile
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Optional
@@ -40,9 +41,27 @@ from guardian_stream import stream_bus, event_stream_generator
 BASE = Path(__file__).resolve().parent
 DATA_DIR = BASE / "data"
 DIST_DIR = BASE / "static" / "dist"
-DB_PATH = Path(os.environ.get("GUARDIAN_DB_PATH", str(BASE / "guardian.db")))
-REPORTS_DIR = BASE / "data" / "reports"
-REPORTS_DIR.mkdir(parents=True, exist_ok=True)
+
+# Detect Serverless runtime (Vercel / AWS Lambda) where root filesystem is read-only
+IS_SERVERLESS = bool(
+    os.environ.get("VERCEL")
+    or os.environ.get("AWS_LAMBDA_FUNCTION_NAME")
+    or os.environ.get("NOW_REGION")
+)
+
+if IS_SERVERLESS:
+    TMP_DIR = Path(tempfile.gettempdir())
+    DB_PATH = Path(os.environ.get("GUARDIAN_DB_PATH", str(TMP_DIR / "guardian.db")))
+    REPORTS_DIR = TMP_DIR / "reports"
+else:
+    DB_PATH = Path(os.environ.get("GUARDIAN_DB_PATH", str(BASE / "guardian.db")))
+    REPORTS_DIR = BASE / "data" / "reports"
+
+try:
+    REPORTS_DIR.mkdir(parents=True, exist_ok=True)
+except Exception:
+    pass
+
 WEBHOOK_SECRET = os.environ.get("RAZORPAY_WEBHOOK_SECRET", "guardian_demo_secret")
 MAX_UPLOAD_MB = 25
 
@@ -53,11 +72,171 @@ policy_engine = PolicyEngine(CURRENT_POLICY_VERSION)
 
 
 def connect_db():
-    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-    con = sqlite3.connect(DB_PATH, timeout=30.0)
+    try:
+        DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+    except Exception:
+        pass
+    con = sqlite3.connect(str(DB_PATH), timeout=30.0)
     con.row_factory = sqlite3.Row
-    con.execute("PRAGMA journal_mode = WAL")
+    try:
+        if IS_SERVERLESS:
+            con.execute("PRAGMA journal_mode = MEMORY")
+        else:
+            con.execute("PRAGMA journal_mode = WAL")
+    except Exception:
+        pass
     return con
+
+
+SAMPLE_TEMPLATE_ROWS = [
+    {
+        "transaction_id": "TXN-10482",
+        "user_id": "CUST-7821",
+        "elderly_name": "Ramesh Kulkarni",
+        "elderly_age": 68,
+        "guardian_name": "Aditya Kulkarni",
+        "guardian_relation": "Son",
+        "guardian_phone": "+91 98201 99112",
+        "payee": "Global Crypto Exchange / Unverified",
+        "amount": 25000.0,
+        "risk_score": 92,
+        "risk_level": "HIGH",
+        "reason": "Unusual amount & location",
+        "reasons": ["Unusual amount & location", "Geofence jump to Dubai gateway", "Night hours transaction"],
+        "status": "PENDING_REVIEW",
+        "origin_city": "Mumbai",
+        "dest_city": "Dubai",
+        "distance_km": 1930.0,
+        "scam_category": "Overseas Crypto Extortion"
+    },
+    {
+        "transaction_id": "TXN-10479",
+        "user_id": "CUST-3914",
+        "elderly_name": "Sunita Sharma",
+        "elderly_age": 64,
+        "guardian_name": "Rohit Sharma",
+        "guardian_relation": "Son",
+        "guardian_phone": "+91 98111 22334",
+        "payee": "QuickTransfer Tech",
+        "amount": 8500.0,
+        "risk_score": 67,
+        "risk_level": "MEDIUM",
+        "reason": "New device & high frequency",
+        "reasons": ["New device & high frequency", "Velocity burst within 5 minutes"],
+        "status": "PENDING_REVIEW",
+        "origin_city": "Delhi",
+        "dest_city": "Jamtara",
+        "distance_km": 1120.0,
+        "scam_category": "Device Impersonation Phishing"
+    },
+    {
+        "transaction_id": "TXN-10475",
+        "user_id": "CUST-5520",
+        "elderly_name": "Vijay Deshmukh",
+        "elderly_age": 72,
+        "guardian_name": "Pooja Deshmukh",
+        "guardian_relation": "Daughter",
+        "guardian_phone": "+91 97654 32100",
+        "payee": "Prize Claim Official",
+        "amount": 42000.0,
+        "risk_score": 89,
+        "risk_level": "HIGH",
+        "reason": "Multiple failed attempts",
+        "reasons": ["Multiple failed attempts", "Rapid retry after PIN rejections", "High-value senior debit"],
+        "status": "PENDING_REVIEW",
+        "origin_city": "Pune",
+        "dest_city": "Lagos",
+        "distance_km": 7200.0,
+        "scam_category": "Foreign Lottery Extortion"
+    },
+    {
+        "transaction_id": "TXN-10470",
+        "user_id": "CUST-1102",
+        "elderly_name": "Anand Joshi",
+        "elderly_age": 69,
+        "guardian_name": "Siddharth Joshi",
+        "guardian_relation": "Son",
+        "guardian_phone": "+91 98220 55443",
+        "payee": "Apollo Pharmacy Care",
+        "amount": 3200.0,
+        "risk_score": 32,
+        "risk_level": "LOW",
+        "reason": "Normal pattern",
+        "reasons": ["Normal pattern", "Regular merchant within home district"],
+        "status": "CLEAR",
+        "origin_city": "Pune",
+        "dest_city": "Pune",
+        "distance_km": 4.2,
+        "scam_category": "Normal Healthcare Purchase"
+    },
+    {
+        "transaction_id": "TXN-10466",
+        "user_id": "CUST-8831",
+        "elderly_name": "Meera Sen",
+        "elderly_age": 67,
+        "guardian_name": "Kunal Sen",
+        "guardian_relation": "Son",
+        "guardian_phone": "+91 98300 77665",
+        "payee": "FastPay Settlement Hub",
+        "amount": 18500.0,
+        "risk_score": 71,
+        "risk_level": "MEDIUM",
+        "reason": "Unusual time of transaction",
+        "reasons": ["Unusual time of transaction", "Late night transaction at 03:15 AM", "Unfamiliar receiver"],
+        "status": "PENDING_REVIEW",
+        "origin_city": "Kolkata",
+        "dest_city": "Phnom Penh",
+        "distance_km": 2800.0,
+        "scam_category": "Unusual Hours Outlier"
+    }
+]
+
+
+def seed_initial_sample_events(con):
+    server_now = datetime.now(timezone.utc).isoformat()
+    for r in SAMPLE_TEMPLATE_ROWS:
+        payload = {
+            "payment_method": "UPI",
+            "location": f"{r['origin_city']}, India",
+            "customer_name": r["elderly_name"],
+            "reason": r["reason"],
+            "scam_category": r["scam_category"]
+        }
+        origin_geo = CITY_COORDINATES.get(r["origin_city"].lower(), {"lat": 19.0760, "lon": 72.8777})
+        dest_geo = CITY_COORDINATES.get(r["dest_city"].lower(), {"lat": 19.0760, "lon": 72.8777})
+
+        con.execute(
+            """INSERT OR REPLACE INTO events (
+                transaction_id, source, user_id, payee, amount, created_at,
+                risk_score, risk_level, reasons_json, status, payload_json, created_server_at,
+                origin_lat, origin_lon, origin_city, origin_country,
+                dest_lat, dest_lon, dest_city, dest_country, dest_entity,
+                distance_km, geofence_status,
+                elderly_name, elderly_age, guardian_name, guardian_relation, guardian_phone,
+                guardian_status, guardian_notes, scam_category, ai_explanation
+            ) VALUES (?, 'template_sample', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'India', ?, ?, ?, 'Destination', 'Settlement Node', ?, 'EVALUATED', ?, ?, ?, ?, ?, 'NORMAL', '', ?, ?)""",
+            (
+                r["transaction_id"], r["user_id"], r["payee"], r["amount"], server_now,
+                r["risk_score"], r["risk_level"], json.dumps(r["reasons"]), r["status"],
+                json.dumps(payload), server_now, origin_geo["lat"], origin_geo["lon"],
+                r["origin_city"], dest_geo["lat"], dest_geo["lon"], r["dest_city"],
+                r["distance_km"], r["elderly_name"], r["elderly_age"], r["guardian_name"],
+                r["guardian_relation"], r["guardian_phone"], r["scam_category"], r["reason"]
+            )
+        )
+
+        if r["risk_level"] in ("HIGH", "MEDIUM"):
+            con.execute(
+                """INSERT OR REPLACE INTO alerts (
+                    transaction_id, user_id, alert_type, title, message, status, created_at,
+                    recipient_role, recipient_name, recipient_phone, elderly_name, elderly_age, action_required
+                ) VALUES (?, ?, 'FAMILY_GUARDIAN', ?, ?, 'UNREAD', ?, 'FAMILY_GUARDIAN', ?, ?, ?, ?, 1)""",
+                (
+                    r["transaction_id"], r["user_id"], f"Suspicious Activity: {r['scam_category']}",
+                    f"Payment of ₹{r['amount']:,.0f} flagged for {r['elderly_name']}: {r['reason']}",
+                    server_now, r["guardian_name"], r["guardian_phone"], r["elderly_name"], r["elderly_age"]
+                )
+            )
 
 
 def init_db():
@@ -221,6 +400,15 @@ def init_db():
             "INSERT INTO settings (key, value_json, updated_at) VALUES ('general', ?, ?)",
             (json.dumps(default_settings), datetime.now(timezone.utc).isoformat())
         )
+
+    # Seed baseline template events if database is newly initialized
+    try:
+        count = cur.execute("SELECT COUNT(*) FROM events").fetchone()[0]
+        if count == 0:
+            seed_initial_sample_events(con)
+    except Exception as exc:
+        print(f"Sample auto-seeding notice: {exc}")
+
     con.commit()
     con.close()
 
@@ -659,34 +847,6 @@ def system_health_metrics():
             "server_timezone": "UTC",
         }
     }), 200
-
-
-# -------------------------------------------------------------
-# Frontend SPA Routes
-# -------------------------------------------------------------
-
-@app.route("/", defaults={"path": ""})
-@app.route("/<path:path>")
-def serve_spa(path):
-    if path and (path.startswith("api/") or path.startswith("webhooks/")):
-        return jsonify({"ok": False, "error": f"API endpoint not found: /{path}"}), 404
-    if path and (DIST_DIR / path).exists():
-        return send_from_directory(DIST_DIR, path)
-    index_file = DIST_DIR / "index.html"
-    if index_file.exists():
-        return send_file(index_file)
-    # Fallback to dev placeholder if not built yet
-    return f"""
-    <!DOCTYPE html>
-    <html>
-      <head><title>Guardian — AI Payment Safety</title></head>
-      <body style="font-family:sans-serif;text-align:center;padding:50px">
-        <h2>Guardian — AI Payment Safety Backend is Active</h2>
-        <p>Vite frontend bundle is building or running at <code>http://localhost:5173</code>.</p>
-        <p>API status: <a href="/api/health">/api/health</a></p>
-      </body>
-    </html>
-    """, 200
 
 
 # -------------------------------------------------------------
@@ -4007,167 +4167,56 @@ def demo_load_template_sample():
             DELETE FROM events;
             DELETE FROM alerts;
         """)
-        
-        sample_rows = [
-            {
-                "transaction_id": "TXN-10482",
-                "user_id": "CUST-7821",
-                "elderly_name": "Ramesh Kulkarni",
-                "elderly_age": 68,
-                "guardian_name": "Aditya Kulkarni",
-                "guardian_relation": "Son",
-                "guardian_phone": "+91 98201 99112",
-                "payee": "Global Crypto Exchange / Unverified",
-                "amount": 25000.0,
-                "risk_score": 92,
-                "risk_level": "HIGH",
-                "reason": "Unusual amount & location",
-                "reasons": ["Unusual amount & location", "Geofence jump to Dubai gateway", "Night hours transaction"],
-                "status": "PENDING_REVIEW",
-                "origin_city": "Mumbai",
-                "dest_city": "Dubai",
-                "distance_km": 1930.0,
-                "scam_category": "Overseas Crypto Extortion"
-            },
-            {
-                "transaction_id": "TXN-10479",
-                "user_id": "CUST-3914",
-                "elderly_name": "Sunita Sharma",
-                "elderly_age": 64,
-                "guardian_name": "Rohit Sharma",
-                "guardian_relation": "Son",
-                "guardian_phone": "+91 98111 22334",
-                "payee": "QuickTransfer Tech",
-                "amount": 8500.0,
-                "risk_score": 67,
-                "risk_level": "MEDIUM",
-                "reason": "New device & high frequency",
-                "reasons": ["New device & high frequency", "Velocity burst within 5 minutes"],
-                "status": "PENDING_REVIEW",
-                "origin_city": "Delhi",
-                "dest_city": "Jamtara",
-                "distance_km": 1120.0,
-                "scam_category": "Device Impersonation Phishing"
-            },
-            {
-                "transaction_id": "TXN-10475",
-                "user_id": "CUST-5520",
-                "elderly_name": "Vijay Deshmukh",
-                "elderly_age": 72,
-                "guardian_name": "Pooja Deshmukh",
-                "guardian_relation": "Daughter",
-                "guardian_phone": "+91 97654 32100",
-                "payee": "Prize Claim Official",
-                "amount": 42000.0,
-                "risk_score": 89,
-                "risk_level": "HIGH",
-                "reason": "Multiple failed attempts",
-                "reasons": ["Multiple failed attempts", "Rapid retry after PIN rejections", "High-value senior debit"],
-                "status": "PENDING_REVIEW",
-                "origin_city": "Pune",
-                "dest_city": "Lagos",
-                "distance_km": 7200.0,
-                "scam_category": "Foreign Lottery Extortion"
-            },
-            {
-                "transaction_id": "TXN-10470",
-                "user_id": "CUST-1102",
-                "elderly_name": "Anand Joshi",
-                "elderly_age": 69,
-                "guardian_name": "Siddharth Joshi",
-                "guardian_relation": "Son",
-                "guardian_phone": "+91 98220 55443",
-                "payee": "Apollo Pharmacy Care",
-                "amount": 3200.0,
-                "risk_score": 32,
-                "risk_level": "LOW",
-                "reason": "Normal pattern",
-                "reasons": ["Normal pattern", "Regular merchant within home district"],
-                "status": "CLEAR",
-                "origin_city": "Pune",
-                "dest_city": "Pune",
-                "distance_km": 4.2,
-                "scam_category": "Normal Healthcare Purchase"
-            },
-            {
-                "transaction_id": "TXN-10466",
-                "user_id": "CUST-8831",
-                "elderly_name": "Meera Sen",
-                "elderly_age": 67,
-                "guardian_name": "Kunal Sen",
-                "guardian_relation": "Son",
-                "guardian_phone": "+91 98300 77665",
-                "payee": "FastPay Settlement Hub",
-                "amount": 18500.0,
-                "risk_score": 71,
-                "risk_level": "MEDIUM",
-                "reason": "Unusual time of transaction",
-                "reasons": ["Unusual time of transaction", "Late night transaction at 03:15 AM", "Unfamiliar receiver"],
-                "status": "PENDING_REVIEW",
-                "origin_city": "Kolkata",
-                "dest_city": "Phnom Penh",
-                "distance_km": 2800.0,
-                "scam_category": "Unusual Hours Outlier"
-            }
-        ]
-
-        server_now = datetime.now(timezone.utc).isoformat()
-        for r in sample_rows:
-            payload = {
-                "payment_method": "UPI",
-                "location": f"{r['origin_city']}, India",
-                "customer_name": r["elderly_name"],
-                "reason": r["reason"],
-                "scam_category": r["scam_category"]
-            }
-            origin_geo = CITY_COORDINATES.get(r["origin_city"].lower(), CITY_COORDINATES["mumbai"])
-            dest_geo = CITY_COORDINATES.get(r["dest_city"].lower(), CITY_COORDINATES["mumbai"])
-            
-            con.execute(
-                """INSERT OR REPLACE INTO events (
-                    transaction_id, source, user_id, payee, amount, created_at,
-                    risk_score, risk_level, reasons_json, status, payload_json, created_server_at,
-                    origin_lat, origin_lon, origin_city, origin_country,
-                    dest_lat, dest_lon, dest_city, dest_country, dest_entity,
-                    distance_km, geofence_status,
-                    elderly_name, elderly_age, guardian_name, guardian_relation, guardian_phone,
-                    guardian_status, guardian_notes, scam_category, ai_explanation
-                ) VALUES (?, 'template_sample', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'India', ?, ?, ?, 'Destination', 'Settlement Node', ?, 'EVALUATED', ?, ?, ?, ?, ?, 'NORMAL', '', ?, ?)""",
-                (
-                    r["transaction_id"], r["user_id"], r["payee"], r["amount"], server_now,
-                    r["risk_score"], r["risk_level"], json.dumps(r["reasons"]), r["status"],
-                    json.dumps(payload), server_now, origin_geo["lat"], origin_geo["lon"],
-                    r["origin_city"], dest_geo["lat"], dest_geo["lon"], r["dest_city"],
-                    r["distance_km"], r["elderly_name"], r["elderly_age"], r["guardian_name"],
-                    r["guardian_relation"], r["guardian_phone"], r["scam_category"], r["reason"]
-                )
-            )
-            
-            if r["risk_level"] in ("HIGH", "MEDIUM"):
-                con.execute(
-                    """INSERT OR REPLACE INTO alerts (
-                        transaction_id, user_id, alert_type, title, message, status, created_at,
-                        recipient_role, recipient_name, recipient_phone, elderly_name, elderly_age, action_required
-                    ) VALUES (?, ?, 'FAMILY_GUARDIAN', ?, ?, 'UNREAD', ?, 'FAMILY_GUARDIAN', ?, ?, ?, ?, 1)""",
-                    (
-                        r["transaction_id"], r["user_id"], f"Suspicious Activity: {r['scam_category']}",
-                        f"Payment of ₹{r['amount']:,.0f} flagged for {r['elderly_name']}: {r['reason']}",
-                        server_now, r["guardian_name"], r["guardian_phone"], r["elderly_name"], r["elderly_age"]
-                    )
-                )
-
+        seed_initial_sample_events(con)
         con.commit()
         con.close()
         return jsonify({
             "ok": True,
             "message": "Template sample records (5 rows matching Panel 4) loaded successfully.",
-            "count": len(sample_rows)
+            "count": len(SAMPLE_TEMPLATE_ROWS)
         })
     except Exception as exc:
         return jsonify({"ok": False, "error": str(exc)}), 500
 
 
-init_db()
+# -------------------------------------------------------------
+# Frontend SPA & Static Fallback Routes (Registered last)
+# -------------------------------------------------------------
+
+@app.route("/", defaults={"path": ""})
+@app.route("/<path:path>")
+def serve_spa(path):
+    if path and (path.startswith("api/") or path.startswith("webhooks/")):
+        return jsonify({"ok": False, "error": f"API endpoint not found: /{path}"}), 404
+    if path and (DIST_DIR / path).exists():
+        max_age = 31536000 if path.startswith("assets/") else 0
+        response = send_from_directory(str(DIST_DIR), path, max_age=max_age)
+        if path.startswith("assets/"):
+            response.headers["Cache-Control"] = "public, max-age=31536000, s-maxage=31536000, immutable"
+        return response
+    index_file = DIST_DIR / "index.html"
+    if index_file.exists():
+        response = send_file(str(index_file))
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        return response
+    # Fallback to dev placeholder if not built yet
+    return f"""
+    <!DOCTYPE html>
+    <html>
+      <head><title>Guardian — AI Payment Safety</title></head>
+      <body style="font-family:sans-serif;text-align:center;padding:50px">
+        <h2>Guardian — AI Payment Safety Backend is Active</h2>
+        <p>Vite frontend bundle is building or running at <code>http://localhost:5173</code>.</p>
+        <p>API status: <a href="/api/health">/api/health</a></p>
+      </body>
+    </html>
+    """, 200
+
+
+try:
+    init_db()
+except Exception as exc:
+    print(f"Warning: init_db failed on startup: {exc}")
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", "5000"))

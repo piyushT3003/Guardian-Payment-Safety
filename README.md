@@ -330,6 +330,14 @@ python tools/test_scenarios_e2e.py
 
 Guardian is cloud-ready and deployable on any container runtime or PaaS provider (Render, Railway, Heroku, AWS ECS):
 
+### Deploying to Vercel
+Guardian is natively configured for Vercel Serverless deployment with `api/index.py` and `vercel.json`:
+- **Serverless Storage:** Detects `VERCEL=1` and dynamically allocates SQLite and report exports to `/tmp/guardian.db` and `/tmp/reports`.
+- **In-Memory Journal:** Applies `PRAGMA journal_mode = MEMORY` to avoid shared-memory lock crashes on serverless instances.
+- **Edge CDN Caching:** Static assets are served with `Cache-Control: public, max-age=31536000, s-maxage=31536000, immutable`.
+- **Serverless SSE Lifecyle:** Real-time stream bus cycles connections safely under serverless function timeouts with automatic client reconnection.
+- **Live Production Deployment:** [https://guardian-payment-safety.vercel.app/](https://guardian-payment-safety.vercel.app/)
+
 ### Deploying to Render
 A pre-configured `render.yaml` is included:
 ```yaml
