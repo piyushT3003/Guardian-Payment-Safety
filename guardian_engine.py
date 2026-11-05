@@ -6,7 +6,10 @@ from datetime import timedelta
 from typing import Optional
 
 import pandas as pd
-from sklearn.ensemble import IsolationForest
+try:
+    from sklearn.ensemble import IsolationForest
+except Exception:
+    IsolationForest = None
 
 BURST_WINDOW_MINUTES = 60
 MIN_HISTORY_FOR_MODEL = 10
@@ -134,7 +137,7 @@ class GuardianEngine:
             def __missing__(self, key):
                 user_txns = self._txns[self._txns["user_id"].astype(str) == str(key)]
                 amounts = user_txns[["amount"]].astype(float).values if not user_txns.empty else []
-                if len(amounts) >= MIN_HISTORY_FOR_MODEL:
+                if len(amounts) >= MIN_HISTORY_FOR_MODEL and IsolationForest is not None:
                     model = IsolationForest(n_estimators=64, contamination="auto", random_state=42)
                     model.fit(amounts)
                     self[key] = model
@@ -218,10 +221,20 @@ class GuardianEngine:
         ai_anomaly = False
         ai_score = None
         if len(history) >= MIN_HISTORY_FOR_MODEL:
-            model = IsolationForest(n_estimators=64, contamination="auto", random_state=42)
-            model.fit(history[["amount"]].astype(float).values)
-            ai_score = float(model.decision_function([[amount]])[0])
-            ai_anomaly = int(model.predict([[amount]])[0]) == -1
+            if IsolationForest is not None:
+                model = IsolationForest(n_estimators=64, contamination="auto", random_state=42)
+                model.fit(history[["amount"]].astype(float).values)
+                ai_score = float(model.decision_function([[amount]])[0])
+                ai_anomaly = int(model.predict([[amount]])[0]) == -1
+            else:
+                std = float(history["amount"].std()) if len(history) > 1 else 0.0
+                if std > 0:
+                    z = (amount - avg) / std
+                    ai_score = round(float(z), 3)
+                    ai_anomaly = bool(z > 2.5)
+                else:
+                    ai_anomaly = bool(amount_ratio > 3.0)
+                    ai_score = round(float(amount_ratio), 3)
 
         score = 0
         reasons = []
