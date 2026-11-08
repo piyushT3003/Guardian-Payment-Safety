@@ -873,11 +873,21 @@ def handle_vercel_index_py():
     to /api/index.py, this handler recovers the original target path from Vercel's
     request headers and dispatches directly to the registered route handler.
     """
+    if request.args.get("debug"):
+        return jsonify({
+            "path": request.path,
+            "full_path": request.full_path,
+            "headers": dict(request.headers),
+            "environ": {k: str(v) for k, v in request.environ.items() if not k.startswith("wsgi.")}
+        })
+
     real_path = (
         request.headers.get("x-matched-path")
         or request.headers.get("x-vercel-matched-path")
         or request.headers.get("x-forwarded-uri")
+        or request.headers.get("x-forwarded-path")
         or request.headers.get("x-original-url")
+        or request.headers.get("x-now-route-matches")
     )
     if real_path and real_path not in ("/api/index.py", "/api/index"):
         try:
@@ -888,7 +898,7 @@ def handle_vercel_index_py():
         except Exception:
             return serve_spa(real_path.lstrip("/"))
 
-    return health()
+    return serve_spa("")
 
 
 @app.get("/api/system/status")
