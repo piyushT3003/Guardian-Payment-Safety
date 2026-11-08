@@ -881,14 +881,18 @@ def handle_vercel_index_py():
             "environ": {k: str(v) for k, v in request.environ.items() if not k.startswith("wsgi.")}
         })
 
-    real_path = (
-        request.headers.get("x-matched-path")
-        or request.headers.get("x-vercel-matched-path")
-        or request.headers.get("x-forwarded-uri")
-        or request.headers.get("x-forwarded-path")
-        or request.headers.get("x-original-url")
-        or request.headers.get("x-now-route-matches")
-    )
+    param_path = request.args.get("path")
+    if param_path is not None:
+        real_path = "/" + param_path.lstrip("/")
+    else:
+        real_path = (
+            request.headers.get("x-matched-path")
+            or request.headers.get("x-vercel-matched-path")
+            or request.headers.get("x-forwarded-uri")
+            or request.headers.get("x-forwarded-path")
+            or request.headers.get("x-original-url")
+            or request.headers.get("x-now-route-matches")
+        )
     if real_path and real_path not in ("/api/index.py", "/api/index"):
         try:
             path_only = real_path.split("?")[0]

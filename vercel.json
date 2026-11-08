@@ -2,8 +2,20 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "rewrites": [
     {
+      "source": "/assets/(.*)",
+      "destination": "/static/dist/assets/$1"
+    },
+    {
+      "source": "/favicon.svg",
+      "destination": "/static/dist/favicon.svg"
+    },
+    {
+      "source": "/icons.svg",
+      "destination": "/static/dist/icons.svg"
+    },
+    {
       "source": "/(.*)",
-      "destination": "/api/index.py"
+      "destination": "/api/index.py?path=$1"
     }
   ]
 }
