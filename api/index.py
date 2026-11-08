@@ -37,21 +37,13 @@ class VercelWSGIMiddleware:
 
     def __call__(self, environ, start_response):
         raw_path = environ.get("PATH_INFO", "")
+        qs = environ.get("QUERY_STRING", "")
 
-        # Diagnostic inspection endpoint
-        if "debug_env" in raw_path or "debug_env" in environ.get("HTTP_X_MATCHED_PATH", ""):
+        # Diagnostic inspection endpoint via query param or path
+        if "debug=1" in qs or "debug_env" in raw_path:
             headers = [("Content-Type", "application/json")]
             start_response("200 OK", headers)
-            info = {
-                "PATH_INFO": environ.get("PATH_INFO"),
-                "SCRIPT_NAME": environ.get("SCRIPT_NAME"),
-                "REQUEST_URI": environ.get("REQUEST_URI"),
-                "RAW_URI": environ.get("RAW_URI"),
-                "HTTP_X_MATCHED_PATH": environ.get("HTTP_X_MATCHED_PATH"),
-                "HTTP_X_FORWARDED_URI": environ.get("HTTP_X_FORWARDED_URI"),
-                "HTTP_X_NOW_ROUTE_MATCHES": environ.get("HTTP_X_NOW_ROUTE_MATCHES"),
-                "all_keys": [k for k in environ.keys() if any(x in k for x in ["PATH", "URI", "VERCEL", "SCRIPT", "MATCH", "URL"])]
-            }
+            info = {k: str(v) for k, v in environ.items() if not k.startswith("wsgi.")}
             return [json.dumps(info, indent=2).encode("utf-8")]
 
         # In Vercel serverless rewrites, destination `/api/index.py` can replace PATH_INFO
