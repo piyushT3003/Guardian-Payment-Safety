@@ -48,7 +48,7 @@ class VercelWSGIMiddleware:
 
         # In Vercel serverless rewrites, destination `/api/index.py` can replace PATH_INFO
         # Recover the real client request path from WSGI headers/environment
-        for key in ["HTTP_X_FORWARDED_URI", "HTTP_X_MATCHED_PATH", "RAW_URI", "REQUEST_URI"]:
+        for key in ["HTTP_X_MATCHED_PATH", "HTTP_X_VERCEL_MATCHED_PATH", "HTTP_X_FORWARDED_URI", "RAW_URI", "REQUEST_URI"]:
             val = environ.get(key)
             if val and not val.endswith("index.py") and not val.endswith("api/index"):
                 clean = val.split("?")[0]

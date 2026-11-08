@@ -864,6 +864,33 @@ def health():
     })
 
 
+@app.route("/api/index.py", methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"])
+@app.route("/api/index", methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"])
+def handle_vercel_index_py():
+    """
+    Vercel Serverless Function Dispatcher:
+    When Vercel rewrites incoming client requests (e.g. /, /api/health, /transactions)
+    to /api/index.py, this handler recovers the original target path from Vercel's
+    request headers and dispatches directly to the registered route handler.
+    """
+    real_path = (
+        request.headers.get("x-matched-path")
+        or request.headers.get("x-vercel-matched-path")
+        or request.headers.get("x-forwarded-uri")
+        or request.headers.get("x-original-url")
+    )
+    if real_path and real_path not in ("/api/index.py", "/api/index"):
+        try:
+            path_only = real_path.split("?")[0]
+            adapter = app.url_map.bind_to_environ(request.environ)
+            endpoint, args = adapter.match(path_only, method=request.method)
+            return app.view_functions[endpoint](**args)
+        except Exception:
+            return serve_spa(real_path.lstrip("/"))
+
+    return health()
+
+
 @app.get("/api/system/status")
 def system_status():
     con = connect_db()
