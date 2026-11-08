@@ -3118,6 +3118,57 @@ def demo_emit_step():
         return jsonify({"ok": False, "error": str(exc)}), 500
 
 
+def ensure_event_exists(con, transaction_id):
+    row = con.execute("SELECT * FROM events WHERE transaction_id=?", (transaction_id,)).fetchone()
+    if row:
+        return row
+    if transaction_id == "TXN-SCAM-6019":
+        server_now = datetime.now(timezone.utc).isoformat()
+        con.execute(
+            """INSERT OR REPLACE INTO events (
+                transaction_id, source, user_id, payee, amount, created_at,
+                risk_score, risk_level, reasons_json, status, payload_json, created_server_at,
+                origin_lat, origin_lon, origin_city, origin_country,
+                dest_lat, dest_lon, dest_city, dest_country, dest_entity,
+                distance_km, geofence_status,
+                elderly_name, elderly_age, guardian_name, guardian_relation, guardian_phone,
+                guardian_status, guardian_notes, scam_category, ai_explanation
+            ) VALUES (?, 'demo_scenario_1', 'CUST-7821', 'Mule Gateway / Crypto Exchange (Dubai)', 48000.0, ?, 96, 'HIGH', ?, 'PENDING_GUARDIAN_APPROVAL', ?, ?, 19.0178, 72.8478, 'Dadar, Mumbai', 'India', 25.2048, 55.2708, 'Dubai', 'UAE', 'Overseas Crypto Gateway', 1930.0, 'BREACHED', 'Ramesh Kulkarni', 68, 'Aditya Kulkarni', 'Son', '+91 98201 99112', 'PENDING', '', 'Digital Arrest & Police Extortion Scam', ?)""",
+            (
+                transaction_id, server_now,
+                json.dumps(["Late night transfer at 02:40 AM", "Geofence jump: Dadar, Mumbai to Dubai (1,930 km)", "Unusual amount: 5.6x average", "Digital arrest video extortion"]),
+                json.dumps({"payment_method": "UPI", "location": "Dadar, Mumbai", "customer_name": "Ramesh Kulkarni"}),
+                server_now,
+                "CRITICAL DIGITAL ARREST EXTORTION: Senior citizen Ramesh Kulkarni (68) subjected to fake police interrogation."
+            )
+        )
+        con.commit()
+        return con.execute("SELECT * FROM events WHERE transaction_id=?", (transaction_id,)).fetchone()
+    elif transaction_id == "TXN-SCAM-5192":
+        server_now = datetime.now(timezone.utc).isoformat()
+        con.execute(
+            """INSERT OR REPLACE INTO events (
+                transaction_id, source, user_id, payee, amount, created_at,
+                risk_score, risk_level, reasons_json, status, payload_json, created_server_at,
+                origin_lat, origin_lon, origin_city, origin_country,
+                dest_lat, dest_lon, dest_city, dest_country, dest_entity,
+                distance_km, geofence_status,
+                elderly_name, elderly_age, guardian_name, guardian_relation, guardian_phone,
+                guardian_status, guardian_notes, scam_category, ai_explanation
+            ) VALUES (?, 'demo_scenario_2', 'CUST-3914', 'International Lottery Claims Office (Lagos)', 35000.0, ?, 91, 'HIGH', ?, 'PENDING_GUARDIAN_APPROVAL', ?, ?, 19.0596, 72.8295, 'Bandra, Mumbai', 'India', 6.5244, 3.3792, 'Lagos', 'Nigeria', 'Offshore Mule Account', 7200.0, 'BREACHED', 'Sunita Sharma', 64, 'Rohit Sharma', 'Son', '+91 98111 22334', 'PENDING', '', 'Foreign Lottery / Advance-Fee Fraud', ?)""",
+            (
+                transaction_id, server_now,
+                json.dumps(["Advance lottery processing fee scheme", "Transcontinental jump: Bandra, Mumbai to Lagos, Nigeria (7,200 km)", "Vulnerable senior account holder"]),
+                json.dumps({"payment_method": "IMPS", "location": "Bandra, Mumbai", "customer_name": "Sunita Sharma"}),
+                server_now,
+                "LOCATION & VELOCITY ANOMALY: Senior citizen Sunita Sharma (64) prompted to pay advance processing fees."
+            )
+        )
+        con.commit()
+        return con.execute("SELECT * FROM events WHERE transaction_id=?", (transaction_id,)).fetchone()
+    return None
+
+
 @app.post("/api/events/<transaction_id>/guardian-action")
 def guardian_action(transaction_id):
     try:
@@ -3127,7 +3178,7 @@ def guardian_action(transaction_id):
         notes = data.get("notes") or ("Payment put ON HOLD by designated family guardian due to fraud suspicion." if action == "HOLD" else "Payment authorized by family guardian.")
 
         con = connect_db()
-        row = con.execute("SELECT * FROM events WHERE transaction_id=?", (transaction_id,)).fetchone()
+        row = ensure_event_exists(con, transaction_id)
         if not row:
             con.close()
             return jsonify({"ok": False, "error": "Transaction not found"}), 404
@@ -3820,7 +3871,7 @@ def demo_scenario_2():
 def accidental_approve(transaction_id):
     try:
         con = connect_db()
-        row = con.execute("SELECT * FROM events WHERE transaction_id=?", (transaction_id,)).fetchone()
+        row = ensure_event_exists(con, transaction_id)
         if not row:
             con.close()
             return jsonify({"ok": False, "error": "Transaction not found"}), 404
@@ -3904,7 +3955,7 @@ def accidental_approve(transaction_id):
 def request_recovery(transaction_id):
     try:
         con = connect_db()
-        row = con.execute("SELECT * FROM events WHERE transaction_id=?", (transaction_id,)).fetchone()
+        row = ensure_event_exists(con, transaction_id)
         if not row:
             con.close()
             return jsonify({"ok": False, "error": "Transaction not found"}), 404
@@ -4022,7 +4073,7 @@ def execute_recovery(transaction_id):
         notes = data.get("notes") or "Emergency inter-bank clawback executed under RBI/NPCI 5-minute rapid recall protocol. Full balance restored."
 
         con = connect_db()
-        row = con.execute("SELECT * FROM events WHERE transaction_id=?", (transaction_id,)).fetchone()
+        row = ensure_event_exists(con, transaction_id)
         if not row:
             con.close()
             return jsonify({"ok": False, "error": "Transaction not found"}), 404
@@ -4146,7 +4197,7 @@ def deny_recovery(transaction_id):
         notes = data.get("notes") or "Recovery request denied following secondary verification."
 
         con = connect_db()
-        row = con.execute("SELECT * FROM events WHERE transaction_id=?", (transaction_id,)).fetchone()
+        row = ensure_event_exists(con, transaction_id)
         if not row:
             con.close()
             return jsonify({"ok": False, "error": "Transaction not found"}), 404
