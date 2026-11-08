@@ -1,5 +1,6 @@
 import os
 import sys
+import json
 import traceback
 from pathlib import Path
 
@@ -12,14 +13,13 @@ if str(ROOT_DIR) not in sys.path:
 os.environ["VERCEL"] = "1"
 
 try:
-    from app import app
-    handler = app
+    from app import app as flask_app
 except Exception as exc:
     from flask import Flask, jsonify
-    app = Flask(__name__)
+    flask_app = Flask(__name__)
     err_tb = traceback.format_exc()
-    @app.route("/", defaults={"path": ""})
-    @app.route("/<path:path>")
+    @flask_app.route("/", defaults={"path": ""})
+    @flask_app.route("/<path:path>")
     def startup_fallback(path=""):
         return jsonify({
             "ok": False,
@@ -29,4 +29,45 @@ except Exception as exc:
             "sys_path": sys.path,
             "cwd": os.getcwd()
         }), 500
-    handler = app
+
+
+class VercelWSGIMiddleware:
+    def __init__(self, wsgi_app):
+        self.wsgi_app = wsgi_app
+
+    def __call__(self, environ, start_response):
+        raw_path = environ.get("PATH_INFO", "")
+
+        # Diagnostic inspection endpoint
+        if "debug_env" in raw_path or "debug_env" in environ.get("HTTP_X_MATCHED_PATH", ""):
+            headers = [("Content-Type", "application/json")]
+            start_response("200 OK", headers)
+            info = {
+                "PATH_INFO": environ.get("PATH_INFO"),
+                "SCRIPT_NAME": environ.get("SCRIPT_NAME"),
+                "REQUEST_URI": environ.get("REQUEST_URI"),
+                "RAW_URI": environ.get("RAW_URI"),
+                "HTTP_X_MATCHED_PATH": environ.get("HTTP_X_MATCHED_PATH"),
+                "HTTP_X_FORWARDED_URI": environ.get("HTTP_X_FORWARDED_URI"),
+                "HTTP_X_NOW_ROUTE_MATCHES": environ.get("HTTP_X_NOW_ROUTE_MATCHES"),
+                "all_keys": [k for k in environ.keys() if any(x in k for x in ["PATH", "URI", "VERCEL", "SCRIPT", "MATCH", "URL"])]
+            }
+            return [json.dumps(info, indent=2).encode("utf-8")]
+
+        # In Vercel serverless rewrites, destination `/api/index.py` can replace PATH_INFO
+        # Recover the real client request path from WSGI headers/environment
+        for key in ["HTTP_X_FORWARDED_URI", "HTTP_X_MATCHED_PATH", "RAW_URI", "REQUEST_URI"]:
+            val = environ.get(key)
+            if val and not val.endswith("index.py") and not val.endswith("api/index"):
+                clean = val.split("?")[0]
+                if not clean.startswith("/"):
+                    clean = "/" + clean
+                environ["PATH_INFO"] = clean
+                break
+
+        return self.wsgi_app(environ, start_response)
+
+
+flask_app.wsgi_app = VercelWSGIMiddleware(flask_app.wsgi_app)
+app = flask_app
+handler = flask_app
